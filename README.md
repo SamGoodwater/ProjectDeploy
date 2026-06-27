@@ -209,6 +209,25 @@ wsl --terminate wsl-mon-projet
 wsl --unregister wsl-mon-projet
 ```
 
+## Publier sur GitHub
+
+Le dépôt local est initialisé. Pour créer le dépôt public **ProjectDeploy** sur GitHub :
+
+```bash
+cd ~/scriptDeploy
+chmod +x scripts/publish-github.sh
+./scripts/publish-github.sh
+```
+
+Ou manuellement :
+
+```bash
+sudo apt install -y gh
+gh auth login
+cd ~/scriptDeploy
+gh repo create ProjectDeploy --public --source=. --remote=origin --push
+```
+
 ## Licence
 
 MIT
