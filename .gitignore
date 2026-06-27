@@ -1,0 +1,7 @@
+*.log
+*.local.conf
+.logs/
+.state/
+/tmp/wsl-project-init/
+.DS_Store
+Thumbs.db
