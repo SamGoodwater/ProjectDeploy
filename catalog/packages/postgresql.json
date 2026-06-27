@@ -1,0 +1,18 @@
+{
+  "id": "postgresql",
+  "label": "PostgreSQL",
+  "description": "Base de données PostgreSQL avec utilisateur projet",
+  "category": "database",
+  "script": "linux/packages/install-postgresql.sh",
+  "requires": ["base"],
+  "provides": ["postgresql", "database"],
+  "options": [
+    {
+      "id": "version",
+      "label": "Version majeure",
+      "type": "select",
+      "choices": ["15", "16"],
+      "default": "16"
+    }
+  ]
+}

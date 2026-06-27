@@ -1,0 +1,16 @@
+{
+  "id": "fastapi",
+  "label": "FastAPI",
+  "description": "API FastAPI avec venv, uvicorn et structure de base",
+  "script": "linux/templates/init-fastapi.sh",
+  "requiresPackages": ["base", "python"],
+  "incompatibleWith": ["laravel", "nuxt"],
+  "interactive": false,
+  "defaultPath": "~/{name}",
+  "domain": false,
+  "options": [],
+  "github": {
+    "supported": true,
+    "fields": ["init", "createRemote", "visibility"]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "composer",
+  "label": "Composer",
+  "description": "Gestionnaire de dépendances PHP",
+  "category": "tool",
+  "script": "linux/packages/install-composer.sh",
+  "requiresProvides": ["php"],
+  "provides": ["composer"],
+  "options": []
+}

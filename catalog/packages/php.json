@@ -1,0 +1,18 @@
+{
+  "id": "php",
+  "label": "PHP",
+  "description": "PHP-FPM avec extensions courantes",
+  "category": "runtime",
+  "script": "linux/packages/install-php.sh",
+  "requires": ["base", "apache"],
+  "provides": ["php"],
+  "options": [
+    {
+      "id": "version",
+      "label": "Version PHP",
+      "type": "select",
+      "choices": ["8.2", "8.3"],
+      "default": "8.3"
+    }
+  ]
+}

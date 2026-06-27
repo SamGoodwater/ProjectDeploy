@@ -1,0 +1,10 @@
+{
+  "id": "github-cli",
+  "label": "GitHub CLI",
+  "description": "Outil gh pour créer des dépôts GitHub",
+  "category": "tool",
+  "script": "linux/packages/install-github-cli.sh",
+  "requires": ["base"],
+  "provides": ["github-cli"],
+  "options": []
+}

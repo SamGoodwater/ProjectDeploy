@@ -1,0 +1,17 @@
+{
+  "id": "fastapi-api",
+  "label": "API FastAPI",
+  "description": "Python, PostgreSQL, FastAPI",
+  "packages": ["base", "python", "postgresql", "github-cli"],
+  "packageOptions": {
+    "python": { "version": "system" },
+    "postgresql": { "version": "16" }
+  },
+  "templates": ["fastapi"],
+  "templateOptions": {},
+  "github": {
+    "init": true,
+    "createRemote": "none",
+    "visibility": "private"
+  }
+}

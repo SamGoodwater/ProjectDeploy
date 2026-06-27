@@ -1,0 +1,11 @@
+{
+  "id": "apache",
+  "label": "Apache",
+  "description": "Serveur web Apache avec mod_rewrite et SSL",
+  "category": "service",
+  "script": "linux/packages/install-apache.sh",
+  "requires": ["base"],
+  "provides": ["webserver", "apache"],
+  "incompatibleWith": ["nginx"],
+  "options": []
+}

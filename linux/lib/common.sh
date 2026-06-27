@@ -3,12 +3,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-LOG_DIR="/var/log/wsl-project-init"
+LINUX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "${LINUX_DIR}/.." && pwd)"
+LOG_DIR="/var/log/project-deploy"
 LOG_FILE="${LOG_DIR}/setup.log"
-STATE_DIR="/var/lib/wsl-project-init"
-DRY_RUN=false
+STATE_DIR="/var/lib/project-deploy"
+PLAN_FILE=""
+NON_INTERACTIVE=false
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -50,21 +51,25 @@ init_logging() {
     chmod 644 "$LOG_FILE" 2>/dev/null || true
 }
 
-load_defaults() {
-    local defaults="${REPO_ROOT}/config/defaults.conf"
-    if [[ -f "$defaults" ]]; then
-        # shellcheck source=/dev/null
-        source "$defaults"
-    fi
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
 }
 
-load_profile() {
-    local profile="$1"
-    local profile_file="${REPO_ROOT}/profiles/${profile}.conf"
-    [[ -f "$profile_file" ]] || die "Profil introuvable : $profile"
-    # shellcheck source=/dev/null
-    source "$profile_file"
-    ok "Profil chargé : $profile"
+apt_update() {
+    info "Mise à jour des index apt..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+}
+
+apt_upgrade() {
+    info "Mise à jour des paquets système..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get upgrade -y -qq
+}
+
+apt_install() {
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get install -y -qq "$@"
 }
 
 slugify() {
@@ -89,94 +94,8 @@ detect_windows_username() {
     echo "$win_user"
 }
 
-apt_update() {
-    info "Mise à jour des index apt..."
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
-}
-
-apt_upgrade() {
-    info "Mise à jour des paquets système..."
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get upgrade -y -qq
-}
-
-apt_install() {
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get install -y -qq "$@"
-}
-
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-install_base_packages() {
-    info "Installation des paquets de base..."
-    apt_install \
-        curl wget git unzip zip ca-certificates gnupg lsb-release \
-        software-properties-common apt-transport-https \
-        build-essential pkg-config \
-        openssh-client htop tree jq nano \
-        ripgrep fd-find net-tools dnsutils iputils-ping lsof
-    ok "Paquets de base installés"
-}
-
-configure_locale_timezone() {
-    local tz="${TIMEZONE:-Europe/Paris}"
-    local locale="${LOCALE:-fr_FR.UTF-8}"
-    local locale_extra="${LOCALE_EXTRA:-en_US.UTF-8}"
-
-    info "Configuration locale et timezone ($tz)..."
-    apt_install locales
-    sed -i "s/# ${locale}/${locale}/" /etc/locale.gen 2>/dev/null || true
-    sed -i "s/# ${locale_extra}/${locale_extra}/" /etc/locale.gen 2>/dev/null || true
-    locale-gen
-    update-locale LANG="$locale" LC_ALL="$locale"
-    ln -sf "/usr/share/zoneinfo/${tz}" /etc/localtime
-    echo "$tz" > /etc/timezone
-    ok "Locale et timezone configurés"
-}
-
-create_debian_user() {
-    local username="$1"
-    local win_user
-    win_user="$(detect_windows_username)"
-
-    if id "$username" &>/dev/null; then
-        ok "Utilisateur $username existe déjà"
-        WSL_USER="$username"
-        return 0
-    fi
-
-    info "Création de l'utilisateur $username..."
-    useradd -m -s /bin/bash -G sudo,www-data "$username" 2>/dev/null || \
-        useradd -m -s /bin/bash -G sudo "$username"
-
-    echo "${username} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${username}"
-    chmod 440 "/etc/sudoers.d/${username}"
-
-    # Copier clés SSH root si présentes
-    if [[ -d /root/.ssh ]]; then
-        mkdir -p "/home/${username}/.ssh"
-        cp -r /root/.ssh/* "/home/${username}/.ssh/" 2>/dev/null || true
-        chown -R "${username}:${username}" "/home/${username}/.ssh"
-        chmod 700 "/home/${username}/.ssh"
-        chmod 600 "/home/${username}/.ssh/"* 2>/dev/null || true
-    fi
-
-    WSL_USER="$username"
-    ok "Utilisateur $username créé (sudo NOPASSWD)"
-    [[ -n "$win_user" ]] && info "Utilisateur Windows détecté : $win_user"
-}
-
-configure_wsl_conf() {
-    local username="$1"
-    local template="${REPO_ROOT}/linux/templates/wsl.conf.tpl"
-    local target="/etc/wsl.conf"
-
-    info "Configuration /etc/wsl.conf (systemd, user par défaut)..."
-    sed "s/{{WSL_USER}}/${username}/g" "$template" > "$target"
-    ok "/etc/wsl.conf configuré — exécutez 'wsl --shutdown' depuis Windows pour appliquer systemd"
+generate_password() {
+    tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24
 }
 
 ensure_project_dir() {
@@ -190,26 +109,14 @@ ensure_project_dir() {
     fi
 }
 
-generate_password() {
-    tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24
-}
-
-render_template() {
-    local template="$1"
-    local output="$2"
-    local content
-    content="$(cat "$template")"
-
-    content="${content//\{\{PROJECT_NAME\}\}/${PROJECT_NAME:-}/}"
-    content="${content//\{\{PROJECT_SLUG\}\}/${PROJECT_SLUG:-}/}"
-    content="${content//\{\{DOMAIN\}\}/${DOMAIN:-}/}"
-    content="${content//\{\{DOCUMENT_ROOT\}\}/${DOCUMENT_ROOT:-}/}"
-    content="${content//\{\{DB_NAME\}\}/${DB_NAME:-}/}"
-    content="${content//\{\{DB_USER\}\}/${DB_USER:-}/}"
-    content="${content//\{\{DB_PASSWORD\}\}/${DB_PASSWORD:-}/}"
-    content="${content//\{\{WSL_USER\}\}/${WSL_USER:-}/}"
-
-    echo "$content" > "$output"
+run_as_user() {
+    local user="$1"
+    shift
+    if [[ "$user" == "root" ]] || [[ -z "$user" ]]; then
+        bash -c "$*"
+    else
+        sudo -u "$user" bash -c "$*"
+    fi
 }
 
 save_state() {
@@ -218,53 +125,81 @@ save_state() {
     echo "${key}=${value}" >> "${STATE_DIR}/state.env"
 }
 
-show_dry_run_plan() {
-    echo ""
-    echo "========================================"
-    echo "  Plan d'installation (dry-run)"
-    echo "========================================"
-    echo "Projet       : ${PROJECT_NAME}"
-    echo "Slug         : ${PROJECT_SLUG}"
-    echo "Type         : ${PROJECT_TYPE}"
-    echo "Chemin       : ${PROJECT_PATH}"
-    echo "Utilisateur  : ${WSL_USER}"
-    echo "Domaine      : ${DOMAIN:-N/A}"
-    [[ "${PROJECT_TYPE}" == "web" ]] && {
-        echo "Serveur web  : ${WEB_SERVER:-apache}"
-        echo "PHP          : ${INSTALL_PHP:-false} (${PHP_VERSION:-})"
-        echo "Framework    : ${PHP_FRAMEWORK:-}"
-        echo "Node.js      : ${INSTALL_NODE:-false} (${NODE_MANAGER:-})"
-    }
-    [[ "${PROJECT_TYPE}" == "python" ]] && {
-        echo "Python       : ${PYTHON_VERSION:-system}"
-        echo "Deps         : ${PYTHON_DEPS_MANAGER:-pip}"
-        echo "Type         : ${PYTHON_PROJECT_TYPE:-script}"
-    }
-    echo "Base de données : ${DB_TYPE:-none}"
-    echo "Redis        : ${INSTALL_REDIS:-false}"
-    echo "Git init     : ${GIT_INIT:-false}"
-    echo "GitHub       : ${GITHUB_REPO:-none}"
-    echo "Log (futur)  : ${LOG_FILE}"
-    echo "========================================"
-    echo ""
-    warn "Relancez avec sudo pour appliquer (mêmes arguments + sans --dry-run)"
-}
-
 write_summary() {
     local summary_file="${STATE_DIR}/summary.txt"
     cat > "$summary_file" <<EOF
 ========================================
-  WSL Project Init — Récapitulatif
+  ProjectDeploy — Récapitulatif
 ========================================
-Projet      : ${PROJECT_NAME}
-Type        : ${PROJECT_TYPE}
-Chemin      : ${PROJECT_PATH}
-WSL         : ${WSL_INSTANCE_NAME:-N/A}
-Domaine     : ${DOMAIN:-N/A}
-Utilisateur : ${WSL_USER}
-Git         : ${GIT_REMOTE:-non initialisé}
+Projet      : ${PROJECT_NAME:-}
+Slug        : ${PROJECT_SLUG:-}
+Chemin      : ${PROJECT_PATH:-}
+WSL         : ${WSL_NAME:-}
+Domaine     : ${PROJECT_DOMAIN:-N/A}
+Utilisateur : ${WSL_USER:-}
 Log         : ${LOG_FILE}
 ========================================
 EOF
     cat "$summary_file"
+}
+
+parse_script_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --plan)
+                PLAN_FILE="$2"
+                shift 2
+                ;;
+            --non-interactive)
+                NON_INTERACTIVE=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+}
+
+load_plan_env() {
+    # shellcheck source=plan.sh
+    source "${LINUX_DIR}/lib/plan.sh"
+    load_plan "$PLAN_FILE"
+}
+
+setup_github_repo() {
+    local project_path="$1"
+    local run_as="${WSL_USER:-root}"
+
+    [[ "${GITHUB_INIT:-false}" == "true" ]] || return 0
+
+    if ! command_exists git; then
+        warn "Git non disponible — skip init"
+        return 0
+    fi
+
+    run_as_user "$run_as" "cd '$project_path' && git init -b main 2>/dev/null || git init"
+
+    if [[ "${GITHUB_CREATE_REMOTE:-none}" == "none" ]]; then
+        ok "Git initialisé (sans remote)"
+        return 0
+    fi
+
+    if ! command_exists gh; then
+        warn "gh non installé — git init seulement"
+        return 0
+    fi
+
+    if ! gh auth status &>/dev/null; then
+        warn "gh non authentifié — exécutez 'gh auth login' puis recréez le remote"
+        return 0
+    fi
+
+    local visibility="${GITHUB_VISIBILITY:-private}"
+    if [[ "${GITHUB_CREATE_REMOTE}" == "ask" ]]; then
+        visibility="${GITHUB_VISIBILITY:-private}"
+    fi
+
+    run_as_user "$run_as" "cd '$project_path' && gh repo create '${PROJECT_NAME}' --${visibility} --source=. --remote=origin" || \
+        warn "Impossible de créer le dépôt GitHub automatiquement"
 }

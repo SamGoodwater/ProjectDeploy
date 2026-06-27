@@ -1,0 +1,23 @@
+{
+  "id": "nuxt",
+  "label": "Nuxt",
+  "description": "Application Nuxt via pnpm create nuxt",
+  "script": "linux/templates/init-nuxt.sh",
+  "requiresPackages": ["base", "nodejs"],
+  "incompatibleWith": ["laravel", "fastapi"],
+  "interactive": true,
+  "defaultPath": "~/{name}",
+  "domain": false,
+  "options": [
+    {
+      "id": "ssr",
+      "label": "Mode SSR",
+      "type": "boolean",
+      "default": true
+    }
+  ],
+  "github": {
+    "supported": true,
+    "fields": ["init", "createRemote", "visibility"]
+  }
+}

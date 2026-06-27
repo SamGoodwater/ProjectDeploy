@@ -1,0 +1,17 @@
+{
+  "id": "laravel",
+  "label": "Laravel",
+  "description": "Application Laravel avec Composer, Apache vhost et domaine .local",
+  "script": "linux/templates/init-laravel.sh",
+  "requiresPackages": ["base", "apache", "php", "composer"],
+  "requiresProvides": [],
+  "incompatibleWith": ["fastapi", "nuxt"],
+  "interactive": true,
+  "defaultPath": "/var/www/{name}",
+  "domain": true,
+  "options": [],
+  "github": {
+    "supported": true,
+    "fields": ["init", "createRemote", "visibility"]
+  }
+}

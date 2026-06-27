@@ -1,0 +1,18 @@
+{
+  "id": "python",
+  "label": "Python",
+  "description": "Python 3, venv, pip et outils de développement",
+  "category": "runtime",
+  "script": "linux/packages/install-python.sh",
+  "requires": ["base"],
+  "provides": ["python"],
+  "options": [
+    {
+      "id": "version",
+      "label": "Version",
+      "type": "select",
+      "choices": ["system", "3.11", "3.12"],
+      "default": "system"
+    }
+  ]
+}

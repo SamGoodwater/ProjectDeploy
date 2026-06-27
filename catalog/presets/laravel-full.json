@@ -1,0 +1,18 @@
+{
+  "id": "laravel-full",
+  "label": "Stack Laravel complète",
+  "description": "Apache, PHP 8.3, Composer, Node.js, PostgreSQL, Laravel",
+  "packages": ["base", "apache", "php", "composer", "nodejs", "postgresql", "github-cli"],
+  "packageOptions": {
+    "php": { "version": "8.3" },
+    "nodejs": { "manager": "pnpm" },
+    "postgresql": { "version": "16" }
+  },
+  "templates": ["laravel"],
+  "templateOptions": {},
+  "github": {
+    "init": true,
+    "createRemote": "ask",
+    "visibility": "private"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "nuxt-app",
+  "label": "Application Nuxt",
+  "description": "Node.js + Nuxt via pnpm",
+  "packages": ["base", "nodejs", "github-cli"],
+  "packageOptions": {
+    "nodejs": { "manager": "pnpm" }
+  },
+  "templates": ["nuxt"],
+  "templateOptions": {
+    "nuxt": { "ssr": true }
+  },
+  "github": {
+    "init": true,
+    "createRemote": "none",
+    "visibility": "private"
+  }
+}

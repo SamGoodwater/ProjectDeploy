@@ -1,7 +1,21 @@
-*.log
-*.local.conf
+# Plans générés
+plans/
+*.plan.json
+
+# Logs et état local
 .logs/
 .state/
-/tmp/wsl-project-init/
+
+# Node / Tauri
+app/node_modules/
+app/dist/
+app/src-tauri/target/
+
+# OS
 .DS_Store
 Thumbs.db
+*.Zone.Identifier
+
+# IDE
+.idea/
+.vscode/

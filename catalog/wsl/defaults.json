@@ -1,0 +1,65 @@
+{
+  "distribution": "Debian",
+  "memory": "8GB",
+  "processors": 4,
+  "swap": "4GB",
+  "locale": "fr_FR.UTF-8",
+  "timezone": "Europe/Paris",
+  "fields": [
+    {
+      "id": "projectName",
+      "label": "Nom du projet",
+      "type": "text",
+      "required": true,
+      "default": "mon-projet"
+    },
+    {
+      "id": "projectPath",
+      "label": "Chemin du projet (Linux)",
+      "type": "text",
+      "required": false,
+      "default": ""
+    },
+    {
+      "id": "wslName",
+      "label": "Nom de l'instance WSL",
+      "type": "text",
+      "required": true,
+      "default": "wsl-{projectSlug}"
+    },
+    {
+      "id": "wslUser",
+      "label": "Utilisateur Debian",
+      "type": "text",
+      "required": false,
+      "default": ""
+    },
+    {
+      "id": "createNew",
+      "label": "Créer une nouvelle instance WSL",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "id": "memory",
+      "label": "Mémoire WSL",
+      "type": "select",
+      "choices": ["4GB", "8GB", "16GB", "32GB"],
+      "default": "8GB"
+    },
+    {
+      "id": "processors",
+      "label": "Processeurs WSL",
+      "type": "select",
+      "choices": ["2", "4", "8", "16"],
+      "default": "4"
+    },
+    {
+      "id": "swap",
+      "label": "Swap WSL",
+      "type": "select",
+      "choices": ["0GB", "4GB", "8GB", "16GB"],
+      "default": "4GB"
+    }
+  ]
+}

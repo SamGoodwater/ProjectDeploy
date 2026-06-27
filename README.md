@@ -1,231 +1,349 @@
-# ProjectDeploy
+# ProjectDeploy v2
 
-Script d'initialisation automatique d'une WSL Debian par projet — stack web (Apache, PHP, Laravel, Node/pnpm, PostgreSQL) ou Python (FastAPI, Django, venv).
+Assistant de déploiement WSL piloté par **catalogues JSON** — interface graphique Tauri et CLI PowerShell.
 
 ## Prérequis
 
-- **Windows 10/11** avec WSL2 activé
-- **PowerShell 5.1+** (ou PowerShell 7)
-- Droits **administrateur** recommandés (création WSL, fichier hosts)
+- Windows 10/11 avec WSL2
+- PowerShell 5.1+
+- Droits administrateur recommandés (création WSL, fichier hosts)
+
+### Développement GUI (Tauri)
+
+- [Node.js 20+](https://nodejs.org/)
+- [Rust](https://rustup.rs/)
+- [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)
+- Visual Studio Build Tools (C++)
 
 ## Démarrage rapide
 
-### Depuis Windows (PowerShell)
+### Première utilisation (recommandé)
+
+Un script vérifie les prérequis, installe ce qui manque (via winget) et lance la GUI :
 
 ```powershell
-# Cloner le dépôt
-git clone https://github.com/VOTRE_USER/ProjectDeploy.git
+cd ProjectDeploy
+.\install.ps1
+```
+
+Options :
+
+```powershell
+# Vérifier sans installer ni lancer la GUI
+.\install.ps1 -CheckOnly
+
+# Forcer une compilation release avant lancement
+.\install.ps1 -BuildRelease
+
+# Ignorer WSL (test GUI uniquement)
+.\install.ps1 -SkipWsl
+
+# Mode CLI au lieu de la GUI
+.\install.ps1 -Cli
+```
+
+Prérequis contrôlés automatiquement : **WSL2**, **Node.js 20+**, **Rust**, **WebView2**, **VS Build Tools (C++)**, **npm install** dans `app/`.
+
+### CLI (terminal)
+
+```powershell
 cd ProjectDeploy
 
-# Mode interactif — crée une WSL + installe tout
-.\install.ps1
+# Mode interactif
+.\cli\deploy.ps1
 
-# Avec un profil prédéfini
-.\install.ps1 -ProjectName "mon-api" -ProjectType python -Profile python-fastapi -NonInteractive
+# Preset Laravel complet
+.\cli\deploy.ps1 -Preset laravel-full -ProjectName "mon-site" -NonInteractive
 
-# Laravel complet sur une nouvelle WSL
-.\install.ps1 -ProjectName "mon-site" -Profile web-laravel
+# Preset FastAPI
+.\cli\deploy.ps1 -Preset fastapi-api -ProjectName "mon-api" -NonInteractive
 
-# WSL existante (comme celle où vous développez déjà)
-.\install.ps1 -UseExistingWsl -ProjectName "mon-app" -Profile web-laravel
+# Preset Nuxt
+.\cli\deploy.ps1 -Preset nuxt-app -ProjectName "mon-nuxt" -NonInteractive
+
+# Exécuter un plan existant
+.\cli\deploy.ps1 -PlanFile plans\mon-site.plan.json
+
+# Générer un plan sans installer
+.\cli\deploy.ps1 -Preset laravel-full -ProjectName "test" -BuildOnly -NonInteractive
 ```
 
-### Depuis la WSL existante (sans PowerShell)
-
-Utile pour tester ou reprovisionner la WSL courante :
-
-```bash
-cd ~/scriptDeploy   # ou le chemin du clone
-sudo bash linux/bootstrap.sh
-```
-
-Avec un profil :
-
-```bash
-sudo bash linux/bootstrap.sh \
-  --project mon-api \
-  --type python \
-  --profile python-fastapi \
-  --non-interactive
-```
-
-## Profils disponibles
-
-| Profil | Stack |
-|--------|-------|
-| `web-laravel` | Apache, PHP 8.3, Composer, Laravel, Node/pnpm, PostgreSQL |
-| `web-vanilla` | Apache, PHP 8.3, Composer, PHP vanilla |
-| `python-fastapi` | Python 3, venv, pip, FastAPI, uvicorn, PostgreSQL, pytest/ruff |
-| `custom` | Questionnaire interactif complet |
-
-## Flux complet (Windows → WSL → Projet)
-
-```
-install.ps1 (PowerShell)
-    ├── Écrit ~/.wslconfig (RAM, CPU, swap)
-    ├── wsl --install -d Debian --name wsl-mon-projet
-    ├── Lance bootstrap.sh dans la WSL
-    │       ├── apt update/upgrade
-    │       ├── Crée utilisateur Debian + /etc/wsl.conf (systemd)
-    │       ├── Installe la stack (web ou python)
-    │       ├── Configure PostgreSQL / Redis
-    │       ├── Permissions (chown www-data pour web)
-    │       ├── Vhost Apache (*.local)
-    │       └── Git init + GitHub (optionnel)
-    └── Ajoute 127.0.0.1 mon-projet.local dans hosts Windows
-```
-
-## Questionnaire interactif (mode custom)
-
-### Projet web
-
-1. Serveur : Apache / Nginx
-2. PHP ? → version → framework (vanilla, Laravel, Symfony, WordPress)
-3. Node.js ? → pnpm (défaut) / npm / yarn
-4. Base de données : aucune / PostgreSQL / MySQL / SQLite
-5. Redis, SSL local (mkcert), Xdebug
-
-### Projet Python
-
-1. Python : système / pyenv (3.11, 3.12)
-2. Gestionnaire : pip / uv / poetry
-3. Type : script / FastAPI / Django / Flask
-4. Base de données : aucune / PostgreSQL / SQLite
-5. Outils qualité : pytest, ruff, black
-
-### Commun
-
-- Utilisateur Debian (défaut : nom utilisateur Windows)
-- Git init
-- Dépôt GitHub : aucun / privé / public
-
-## Structure du dépôt
-
-```
-scriptDeploy/
-├── install.ps1                 # Point d'entrée Windows
-├── config/
-│   ├── defaults.conf           # Valeurs par défaut
-│   └── wsl-template.wslconfig
-├── profiles/                   # Profils prédéfinis
-├── windows/                    # Scripts PowerShell
-│   ├── New-WslInstance.ps1
-│   ├── Set-WslConfig.ps1
-│   ├── Invoke-WslBootstrap.ps1
-│   └── Set-WindowsHosts.ps1
-└── linux/
-    ├── bootstrap.sh            # Point d'entrée Linux
-    ├── lib/                    # Modules bash
-    └── templates/              # vhost Apache, .gitignore, .env
-```
-
-## Arguments PowerShell
-
-| Paramètre | Description |
-|-----------|-------------|
-| `-ProjectName` | Nom du projet |
-| `-ProjectType` | `web` ou `python` |
-| `-Profile` | `web-laravel`, `web-vanilla`, `python-fastapi` |
-| `-ProjectPath` | Chemin custom (défaut : `/var/www/X` ou `~/X`) |
-| `-WslName` | Nom instance WSL (défaut : `wsl-{slug}`) |
-| `-UseExistingWsl` | Ne pas créer de WSL, utiliser l'existante |
-| `-NonInteractive` | Pas de questions (nécessite ProjectName + Type ou Profile) |
-| `-Memory`, `-Processors`, `-Swap` | Ressources .wslconfig |
-
-## Arguments bootstrap Linux
-
-```bash
-sudo bash linux/bootstrap.sh \
-  --project mon-projet \
-  --type web \
-  --profile web-laravel \
-  --path /var/www/mon-projet \
-  --user monuser \
-  --wsl-name wsl-mon-projet \
-  --non-interactive
-```
-
-## Après l'installation
+### GUI (Tauri)
 
 ```powershell
-# Entrer dans la WSL du projet
-wsl -d wsl-mon-projet
+# Automatique (vérifie + installe + lance)
+.\install.ps1
 
-# Appliquer systemd (première fois)
-wsl --shutdown
-# Puis relancer la WSL
+# Manuel
+cd ProjectDeploy\app
+npm install
+npm run tauri dev
 ```
 
-### Laravel
+Build release :
+
+```powershell
+cd app
+npm run tauri build
+# Exécutable : app\src-tauri\target\release\project-deploy.exe
+```
+
+## Architecture
+
+```
+catalog/          → JSON (paquets, templates, presets) — seule source de vérité UI
+cli/              → PowerShell (Build-Plan, Execute-Plan, deploy)
+windows/          → WSL, .wslconfig, hosts
+linux/            → orchestrator + scripts modulaires
+app/              → Tauri + React (wizard 3 étapes + terminal PTY)
+plans/            → plans générés (*.plan.json)
+```
+
+### Flux
+
+1. UI ou CLI produit un `plan.json`
+2. `Execute-Plan.ps1` configure Windows (`.wslconfig`, WSL, hosts)
+3. `linux/orchestrator.sh` exécute paquets puis templates dans l'ordre
+
+## Stacks v1
+
+| Template | Preset | Paquets typiques |
+|----------|--------|------------------|
+| Laravel | `laravel-full` | Apache, PHP, Composer, Node, PostgreSQL |
+| FastAPI | `fastapi-api` | Python, PostgreSQL |
+| Nuxt | `nuxt-app` | Node.js (pnpm) |
+
+## Étendre le catalogue — guide rapide
+
+**Principe :** l'UI et la CLI lisent uniquement les fichiers JSON dans `catalog/`.  
+Pour ajouter une possibilité, vous créez **1 JSON + 1 script bash** — sans modifier l'orchestrateur, la GUI ni la CLI.
+
+```
+catalog/packages/mon-paquet.json     →  checkbox + options dans l'UI
+linux/packages/install-mon-paquet.sh →  exécuté par orchestrator.sh
+
+catalog/templates/mon-stack.json     →  checkbox template
+linux/templates/init-mon-stack.sh    →  init projet
+```
+
+Les schémas de référence sont dans `catalog/schema/` (`package.schema.json`, `template.schema.json`, `plan.schema.json`).
+
+---
+
+### Ajouter un paquet à installer
+
+**Étape 1 — JSON** `catalog/packages/redis.json`
+
+```json
+{
+  "id": "redis",
+  "label": "Redis",
+  "description": "Cache Redis",
+  "category": "service",
+  "script": "linux/packages/install-redis.sh",
+  "requires": ["base"],
+  "provides": ["redis"],
+  "incompatibleWith": [],
+  "options": [
+    {
+      "id": "port",
+      "label": "Port",
+      "type": "text",
+      "default": "6379"
+    }
+  ]
+}
+```
+
+| Champ | Rôle |
+|-------|------|
+| `id` | Identifiant unique (= nom du script `install-{id}.sh`) |
+| `requires` | IDs de paquets cochés automatiquement avant celui-ci |
+| `requiresProvides` | Ex. `["php"]` — résout le paquet qui `provides: ["php"]` |
+| `provides` | Capacités exposées aux templates (`requiresProvides`) |
+| `incompatibleWith` | IDs exclusifs (erreur si cochés ensemble) |
+| `hidden` | `true` = invisible UI mais installable (ex. `base`) |
+| `options` | Paramètres UI : `select`, `boolean`, `text` |
+
+**Étape 2 — Script** `linux/packages/install-redis.sh`
 
 ```bash
-cd /var/www/mon-projet
-php artisan migrate
-pnpm run dev
-# http://mon-projet.local
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/plan.sh"
+
+parse_script_args "$@"          # --plan /var/lib/project-deploy/plan.json
+load_plan "$PLAN_FILE"
+require_root
+
+port="$(plan_package_option redis port "6379")"
+
+apt_install redis-server
+ok "Redis installé (port $port)"
 ```
 
-### FastAPI
+**Lire le plan dans un script :**
+
+| Fonction bash | Usage |
+|---------------|-------|
+| `plan_package_option <id> <option> [défaut]` | Valeur d'une option paquet |
+| `plan_has_package <id>` | Vrai si le paquet est dans le plan |
+| `plan_template_option <id> <option> [défaut]` | Option d'un template |
+| `$PROJECT_NAME`, `$PROJECT_PATH`, `$WSL_USER` | Variables projet (via `load_plan`) |
+
+Rendre le script **idempotent** : tester si déjà installé (`command_exists`, `systemctl is-active`) et sortir avec `ok` si rien à faire.
 
 ```bash
-cd ~/mon-projet
-source .venv/bin/activate
-uvicorn app.main:app --reload
+chmod +x linux/packages/install-redis.sh
 ```
 
-## GitHub
+C'est tout — le paquet apparaît automatiquement dans l'UI (étape 2) et la CLI.
 
-Le script installe `gh` et peut créer un dépôt si authentifié :
+---
 
-```bash
-gh auth login
+### Ajouter un template (init projet)
+
+**Étape 1 — JSON** `catalog/templates/symfony.json`
+
+```json
+{
+  "id": "symfony",
+  "label": "Symfony",
+  "description": "Projet Symfony via Composer",
+  "script": "linux/templates/init-symfony.sh",
+  "requiresPackages": ["base", "apache", "php", "composer"],
+  "incompatibleWith": ["laravel", "fastapi", "nuxt"],
+  "interactive": true,
+  "defaultPath": "/var/www/{name}",
+  "domain": true,
+  "options": [],
+  "github": { "supported": true, "fields": ["init", "createRemote", "visibility"] }
+}
 ```
 
-Pour générer une clé SSH :
+| Champ | Rôle |
+|-------|------|
+| `requiresPackages` | Paquets auto-sélectionnés quand le template est coché |
+| `interactive` | `true` = terminal PTY dans la GUI après install |
+| `defaultPath` | Chemin Linux par défaut (`{name}` = nom du projet) |
+| `domain` | `true` → génère `{slug}.local` + entrée hosts Windows |
+| `incompatibleWith` | Autres templates exclusifs |
 
-```bash
-ssh-keygen -t ed25519 -C "votre@email.com"
-# Ajouter ~/.ssh/id_ed25519.pub sur GitHub
+**Étape 2 — Script** `linux/templates/init-symfony.sh`
+
+Même en-tête que les paquets (`parse_script_args`, `load_plan`, `require_root`).  
+Utilisez `setup_github_repo "$PROJECT_PATH"` (défini dans `linux/lib/common.sh`) pour Git/GitHub.
+
+---
+
+### Ajouter un preset (sélection pré-cochée)
+
+Fichier `catalog/presets/symfony-full.json` :
+
+```json
+{
+  "id": "symfony-full",
+  "label": "Stack Symfony",
+  "description": "Apache, PHP, Composer, Symfony",
+  "packages": ["base", "apache", "php", "composer", "github-cli"],
+  "packageOptions": {
+    "php": { "version": "8.3" }
+  },
+  "templates": ["symfony"],
+  "templateOptions": {},
+  "github": {
+    "init": true,
+    "createRemote": "none",
+    "visibility": "private"
+  }
+}
 ```
+
+Utilisation CLI :
+
+```powershell
+.\cli\deploy.ps1 -Preset symfony-full -ProjectName "mon-app" -NonInteractive
+```
+
+Les presets apparaissent aussi comme boutons en haut du wizard GUI.
+
+---
+
+### Flux des paramètres (options)
+
+```
+JSON catalog (options[])
+       ↓  GUI / CLI
+plans/mon-projet.plan.json
+       ↓
+{
+  "packages": [
+    { "id": "php", "options": { "version": "8.3" } }
+  ],
+  "templates": [
+    { "id": "laravel", "options": {} }
+  ]
+}
+       ↓  orchestrator.sh
+linux/packages/install-php.sh --plan /var/lib/project-deploy/plan.json
+       ↓
+plan_package_option php version "8.3"   →  "8.3"
+```
+
+---
+
+### Tester sans la GUI
+
+```powershell
+# Générer le plan seulement
+.\cli\deploy.ps1 -Preset laravel-full -ProjectName "test" -BuildOnly -NonInteractive
+
+# Inspecter
+Get-Content plans\test.plan.json
+
+# Exécuter
+.\cli\deploy.ps1 -PlanFile plans\test.plan.json
+```
+
+Logs Linux : `/var/log/project-deploy/setup.log`
+
+---
+
+### Rappels
+
+- **Ordre d'exécution** : paquets (triés par dépendances) → templates — géré par `linux/orchestrator.sh`
+- **Nommage** : `id` du JSON = suffixe du script (`install-{id}.sh`, `init-{id}.sh`)
+- **base** : paquet système toujours inclus (utilisateur Debian, jq, locale, systemd)
+- **Schemas** : valider vos JSON contre `catalog/schema/*.schema.json` si besoin
+
+
+## Wizard GUI
+
+1. **Projet & WSL** — nom, chemin, ressources WSL
+2. **Paquets** — checkboxes générées depuis `catalog/packages/`
+3. **Templates & GitHub** — init projet + options Git
+4. **Installation** — logs + terminal PTY (shell dans le projet)
+
+Presets chargables en un clic depuis l'écran principal.
+
+## Checklist de validation manuelle
+
+- [ ] `.\cli\deploy.ps1 -Preset laravel-full -ProjectName "test-laravel" -NonInteractive`
+- [ ] `http://test-laravel.local` répond (hosts + Apache)
+- [ ] `.\cli\deploy.ps1 -Preset fastapi-api -ProjectName "test-api" -NonInteractive`
+- [ ] `uvicorn app.main:app --reload` dans la WSL
+- [ ] `.\cli\deploy.ps1 -Preset nuxt-app -ProjectName "test-nuxt" -NonInteractive`
+- [ ] GUI : wizard complet + terminal post-install
+- [ ] Ajout d'un paquet JSON + script sans toucher au cœur
 
 ## Logs
 
-Les logs d'installation sont dans :
-
 ```
-/var/log/wsl-project-init/setup.log
-```
-
-L'état et le récapitulatif :
-
-```
-/var/lib/wsl-project-init/summary.txt
-```
-
-## Supprimer un projet WSL
-
-```powershell
-wsl --terminate wsl-mon-projet
-wsl --unregister wsl-mon-projet
-```
-
-## Publier sur GitHub
-
-Le dépôt local est initialisé. Pour créer le dépôt public **ProjectDeploy** sur GitHub :
-
-```bash
-cd ~/scriptDeploy
-chmod +x scripts/publish-github.sh
-./scripts/publish-github.sh
-```
-
-Ou manuellement :
-
-```bash
-sudo apt install -y gh
-gh auth login
-cd ~/scriptDeploy
-gh repo create ProjectDeploy --public --source=. --remote=origin --push
+/var/log/project-deploy/setup.log
+/var/lib/project-deploy/summary.txt
 ```
 
 ## Licence

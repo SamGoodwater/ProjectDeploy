@@ -1,0 +1,197 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.5;
+  color: #e8eaed;
+  background: #0f1419;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+}
+
+.stepper {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.step {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  background: #1a2332;
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.step.active {
+  opacity: 1;
+  background: #243447;
+  border: 1px solid #4a9eff;
+}
+
+.panel {
+  background: #1a2332;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  color: #9aa5b1;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f1419;
+  color: #e8eaed;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #243447;
+}
+
+.checkbox-row:last-child {
+  border-bottom: none;
+}
+
+.checkbox-row.disabled {
+  opacity: 0.45;
+}
+
+.checkbox-row small {
+  display: block;
+  color: #9aa5b1;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button.primary {
+  background: #4a9eff;
+  color: #0f1419;
+}
+
+button.secondary {
+  background: #334155;
+  color: #e8eaed;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.alert.error {
+  background: #3b1f1f;
+  color: #fca5a5;
+}
+
+.alert.warning {
+  background: #3b2f1f;
+  color: #fcd34d;
+}
+
+.alert.success {
+  background: #1f3b2a;
+  color: #86efac;
+}
+
+.recap dt {
+  color: #9aa5b1;
+  margin-top: 8px;
+}
+
+.recap dd {
+  margin: 2px 0 0;
+}
+
+.console-panel {
+  margin-top: 16px;
+}
+
+.console-log {
+  background: #0a0e14;
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 200px;
+  max-height: 400px;
+  overflow: auto;
+  font-family: Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.terminal-container {
+  background: #0a0e14;
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 280px;
+}
+
+.preset-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.preset-bar button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}

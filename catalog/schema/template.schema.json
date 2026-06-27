@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Template",
+  "type": "object",
+  "required": ["id", "label", "script"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "label": { "type": "string" },
+    "description": { "type": "string" },
+    "script": { "type": "string" },
+    "requiresPackages": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "requiresProvides": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "incompatibleWith": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "interactive": { "type": "boolean" },
+    "defaultPath": { "type": "string" },
+    "domain": { "type": "boolean" },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "type": { "type": "string", "enum": ["select", "boolean", "text"] },
+          "choices": { "type": "array", "items": { "type": "string" } },
+          "default": {}
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "properties": {
+        "supported": { "type": "boolean" },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

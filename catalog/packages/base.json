@@ -1,0 +1,11 @@
+{
+  "id": "base",
+  "label": "Système de base",
+  "description": "Paquets essentiels, locale, utilisateur Debian, systemd",
+  "category": "system",
+  "script": "linux/packages/install-base.sh",
+  "provides": ["base"],
+  "defaultSelected": true,
+  "hidden": true,
+  "options": []
+}

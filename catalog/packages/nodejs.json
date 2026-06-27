@@ -1,0 +1,18 @@
+{
+  "id": "nodejs",
+  "label": "Node.js",
+  "description": "Node.js LTS via fnm avec pnpm",
+  "category": "runtime",
+  "script": "linux/packages/install-nodejs.sh",
+  "requires": ["base"],
+  "provides": ["nodejs"],
+  "options": [
+    {
+      "id": "manager",
+      "label": "Gestionnaire de paquets",
+      "type": "select",
+      "choices": ["pnpm", "npm", "yarn"],
+      "default": "pnpm"
+    }
+  ]
+}
