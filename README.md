@@ -312,6 +312,47 @@ Logs Linux : `/var/log/project-deploy/setup.log`
 
 ---
 
+### Git : user.name et user.email
+
+Ces champs sont dans le bloc **`github`** du plan (pas un paquet séparé). Ils configurent `git config --global` pour l'utilisateur WSL avant `git init`.
+
+**Dans le plan** (`plans/mon-projet.plan.json`) :
+
+```json
+"github": {
+  "init": true,
+  "createRemote": "none",
+  "visibility": "private",
+  "userName": "Jean Dupont",
+  "userEmail": "jean@example.com"
+}
+```
+
+**GUI** — étape 3 (Templates & GitHub), champs visibles quand « Initialiser Git » est coché.
+
+**CLI** — valeurs par défaut : nom = utilisateur WSL, email = `{user}@localhost`. Pour les surcharger, éditez le plan ou le preset :
+
+```json
+"github": {
+  "init": true,
+  "createRemote": "ask",
+  "visibility": "private",
+  "userName": "Jean Dupont",
+  "userEmail": "jean@example.com"
+}
+```
+
+**Côté bash** — lus automatiquement via `load_plan` :
+
+```bash
+# $GIT_USER_NAME et $GIT_USER_EMAIL (variables exportées)
+# appliqués dans setup_git_identity() avant git init
+```
+
+Si vides : repli sur `$WSL_USER` et `{WSL_USER}@localhost`.
+
+---
+
 ### Rappels
 
 - **Ordre d'exécution** : paquets (triés par dépendances) → templates — géré par `linux/orchestrator.sh`

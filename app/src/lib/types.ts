@@ -66,6 +66,8 @@ export interface GithubConfig {
   init: boolean;
   createRemote: "none" | "ask" | "private" | "public";
   visibility: "private" | "public";
+  userName?: string;
+  userEmail?: string;
 }
 
 export interface PlanPackage {

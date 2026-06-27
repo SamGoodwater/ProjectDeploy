@@ -241,6 +241,8 @@ export function defaultSelection(catalog: CatalogData): SelectionState {
       init: true,
       createRemote: "ask",
       visibility: "private",
+      userName: "",
+      userEmail: "",
     },
   };
 }

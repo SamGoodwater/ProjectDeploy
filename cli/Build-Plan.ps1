@@ -99,6 +99,8 @@ if (-not $Github) {
         init         = $true
         createRemote = "ask"
         visibility   = "private"
+        userName     = $WslUser
+        userEmail    = if ($WslUser) { "$WslUser@localhost" } else { "" }
     }
 }
 

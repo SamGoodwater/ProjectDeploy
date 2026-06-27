@@ -27,6 +27,8 @@ load_plan() {
     GITHUB_INIT="$(jq -r '.github.init' "$plan_file")"
     GITHUB_CREATE_REMOTE="$(jq -r '.github.createRemote' "$plan_file")"
     GITHUB_VISIBILITY="$(jq -r '.github.visibility' "$plan_file")"
+    GIT_USER_NAME="$(jq -r '.github.userName // empty' "$plan_file")"
+    GIT_USER_EMAIL="$(jq -r '.github.userEmail // empty' "$plan_file")"
 
     if [[ -z "$WSL_USER" || "$WSL_USER" == "null" ]]; then
         WSL_USER="$(detect_windows_username)"
@@ -36,6 +38,7 @@ load_plan() {
     export PROJECT_NAME PROJECT_SLUG PROJECT_PATH PROJECT_DOMAIN
     export WSL_NAME WSL_USER WSL_CREATE_NEW WSL_MEMORY WSL_PROCESSORS WSL_SWAP WSL_DISTRIBUTION
     export GITHUB_INIT GITHUB_CREATE_REMOTE GITHUB_VISIBILITY
+    export GIT_USER_NAME GIT_USER_EMAIL
     export PLAN_FILE="$plan_file"
 }
 

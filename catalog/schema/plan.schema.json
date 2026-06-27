@@ -56,7 +56,9 @@
       "properties": {
         "init": { "type": "boolean" },
         "createRemote": { "type": "string", "enum": ["none", "ask", "private", "public"] },
-        "visibility": { "type": "string", "enum": ["private", "public"] }
+        "visibility": { "type": "string", "enum": ["private", "public"] },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" }
       }
     }
   }

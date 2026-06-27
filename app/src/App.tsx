@@ -50,6 +50,18 @@ export default function App() {
         setIsAdmin(await isAdministrator());
         const winUser = await getWindowsUsername();
         setForm((f) => (f ? { ...f, wslUser: winUser } : f));
+        setSelection((s) =>
+          s
+            ? {
+                ...s,
+                github: {
+                  ...s.github,
+                  userName: s.github.userName || winUser,
+                  userEmail: s.github.userEmail || `${winUser}@localhost`,
+                },
+              }
+            : s,
+        );
       } catch (e) {
         setError(String(e));
       }

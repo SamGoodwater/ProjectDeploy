@@ -167,6 +167,23 @@ load_plan_env() {
     load_plan "$PLAN_FILE"
 }
 
+setup_git_identity() {
+    local run_as="${WSL_USER:-root}"
+    local name="${GIT_USER_NAME:-}"
+    local email="${GIT_USER_EMAIL:-}"
+
+    [[ -n "$name" ]] || name="$run_as"
+    [[ -n "$email" ]] || email="${run_as}@localhost"
+
+    if ! command_exists git; then
+        return 0
+    fi
+
+    run_as_user "$run_as" "git config --global user.name '$name'"
+    run_as_user "$run_as" "git config --global user.email '$email'"
+    ok "Git configuré : $name <$email>"
+}
+
 setup_github_repo() {
     local project_path="$1"
     local run_as="${WSL_USER:-root}"
@@ -177,6 +194,8 @@ setup_github_repo() {
         warn "Git non disponible — skip init"
         return 0
     fi
+
+    setup_git_identity
 
     run_as_user "$run_as" "cd '$project_path' && git init -b main 2>/dev/null || git init"
 

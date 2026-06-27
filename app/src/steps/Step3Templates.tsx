@@ -66,8 +66,34 @@ export function Step3Templates({
             />
             <label>Initialiser Git localement</label>
           </div>
+          {github.init && (
+            <>
+              <div className="field">
+                <label htmlFor="gitUserName">Git user.name</label>
+                <input
+                  id="gitUserName"
+                  placeholder="Jean Dupont"
+                  value={github.userName ?? ""}
+                  onChange={(e) =>
+                    onGithubChange({ ...github, userName: e.target.value })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="gitUserEmail">Git user.email</label>
+                <input
+                  id="gitUserEmail"
+                  type="email"
+                  placeholder="jean@example.com"
+                  value={github.userEmail ?? ""}
+                  onChange={(e) =>
+                    onGithubChange({ ...github, userEmail: e.target.value })
+                  }
+                />
+              </div>
+            </>
+          )}
           <div className="field">
-            <label>Dépôt distant</label>
             <select
               value={github.createRemote}
               onChange={(e) =>
