@@ -26,6 +26,10 @@ cd ProjectDeploy
 .\install.ps1
 ```
 
+Ou double-clic sur **`start.cmd`** (évite les avertissements de sécurité répétés).
+
+Au premier lancement, **`install.ps1` débloque automatiquement** tous les scripts `.ps1` du projet (kDrive / Internet).
+
 Options :
 
 ```powershell
@@ -43,6 +47,8 @@ Options :
 ```
 
 Prérequis contrôlés automatiquement : **WSL2**, **Node.js 20+**, **Rust**, **WebView2**, **VS Build Tools (C++)**, **npm install** dans `app/`.
+
+**VS Build Tools** : l’installation peut durer 10–30 min. Le script attend la fin ; si la GUI reste « incomplete », relancez `.\install.ps1` une fois l’installateur Visual Studio terminé.
 
 ### CLI (terminal)
 

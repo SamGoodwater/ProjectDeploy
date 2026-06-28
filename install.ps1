@@ -1,19 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Point d'entrée ProjectDeploy — vérifie l'environnement, installe si besoin, lance la GUI.
-
-.EXAMPLE
-    .\install.ps1
-
-.EXAMPLE
-    .\install.ps1 -CheckOnly
-
-.EXAMPLE
-    .\install.ps1 -BuildRelease
-
-.EXAMPLE
-    .\install.ps1 -Cli
+    Point d'entree ProjectDeploy - verifie l'environnement, installe si besoin, lance la GUI.
 #>
 
 param(
@@ -25,6 +13,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = $PSScriptRoot
+
+function Unblock-ProjectScripts {
+    param([string]$Root)
+    Get-ChildItem -Path $Root -Recurse -Filter "*.ps1" -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.Attributes -band [IO.FileAttributes]::Archive) {
+            Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Unblock-ProjectScripts -Root $RepoRoot
 
 if ((Get-Item -LiteralPath $PSCommandPath).Attributes -band [IO.FileAttributes]::Archive) {
     Unblock-File -LiteralPath $PSCommandPath

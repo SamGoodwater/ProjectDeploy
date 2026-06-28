@@ -1,23 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Vérifie et installe les prérequis ProjectDeploy, puis prépare l'app Tauri.
-
-.DESCRIPTION
-    Contrôle WSL2, Node.js 20+, Rust, WebView2 et les dépendances npm.
-    Installe automatiquement via winget lorsque c'est possible.
-
-.PARAMETER InstallMissing
-    Tente d'installer les composants manquants (défaut : true).
-
-.PARAMETER LaunchGui
-    Lance l'interface graphique si tous les prérequis GUI sont OK.
-
-.PARAMETER BuildRelease
-    Compile l'exécutable Tauri release au lieu de lancer tauri dev.
-
-.PARAMETER SkipWsl
-    Ne vérifie pas WSL (utile si vous testez uniquement la GUI).
+    Verifie et installe les prerequis ProjectDeploy, puis prepare l'app Tauri.
 #>
 
 param(
@@ -29,6 +13,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+if ((Get-Item -LiteralPath $PSCommandPath).Attributes -band [IO.FileAttributes]::Archive) {
+    Unblock-File -LiteralPath $PSCommandPath
+}
 $AppDir = Join-Path $RepoRoot "app"
 $TauriRelease = Join-Path $AppDir "src-tauri\target\release\project-deploy.exe"
 
@@ -37,28 +25,28 @@ $MinNodeMajor = 20
 function Write-Step {
     param([string]$Message)
     Write-Host ""
-    Write-Host "→ $Message" -ForegroundColor Cyan
+    Write-Host ("-> {0}" -f $Message) -ForegroundColor Cyan
 }
 
 function Write-Ok {
     param([string]$Message)
-    Write-Host "  ✓ $Message" -ForegroundColor Green
+    Write-Host ("  [OK] {0}" -f $Message) -ForegroundColor Green
 }
 
 function Write-Warn {
     param([string]$Message)
-    Write-Host "  ! $Message" -ForegroundColor Yellow
+    Write-Host ("  [!] {0}" -f $Message) -ForegroundColor Yellow
 }
 
 function Write-Fail {
     param([string]$Message)
-    Write-Host "  ✗ $Message" -ForegroundColor Red
+    Write-Host ("  [X] {0}" -f $Message) -ForegroundColor Red
 }
 
 function Refresh-SessionPath {
-    $machine = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
-    $user = [System.Environment]::GetEnvironmentVariable("Path", "User")
-    $env:Path = "$machine;$user"
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "{0};{1}" -f $machinePath, $userPath
 }
 
 function Test-CommandExists {
@@ -67,25 +55,32 @@ function Test-CommandExists {
 }
 
 function Test-WingetAvailable {
-    return Test-CommandExists "winget"
+    return (Test-CommandExists "winget")
 }
 
 function Install-WithWinget {
     param(
         [string]$Id,
-        [string]$Label
+        [string]$Label,
+        [string]$Override = ""
     )
     if (-not (Test-WingetAvailable)) {
-        Write-Warn "winget indisponible — installez $Label manuellement."
+        Write-Warn ("winget indisponible - installez {0} manuellement." -f $Label)
         return $false
     }
-    Write-Step "Installation de $Label via winget..."
-    winget install --id $Id -e `
-        --accept-package-agreements `
-        --accept-source-agreements `
-        --disable-interactivity
+    Write-Step ("Installation de {0} via winget..." -f $Label)
+    $wingetArgs = @(
+        "install", "--id", $Id, "-e",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+        "--disable-interactivity"
+    )
+    if ($Override) {
+        $wingetArgs += @("--override", $Override)
+    }
+    & winget @wingetArgs
     if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189) {
-        Write-Warn "winget a retourné le code $LASTEXITCODE pour $Label"
+        Write-Warn ("winget a retourne le code {0} pour {1}" -f $LASTEXITCODE, $Label)
         return $false
     }
     Refresh-SessionPath
@@ -107,31 +102,50 @@ function Test-WebView2Installed {
     foreach ($p in $paths) {
         if (Test-Path $p) { return $true }
     }
-    $reg = Get-ItemProperty `
-        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" `
-        -ErrorAction SilentlyContinue
+    $regPath = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+    $reg = Get-ItemProperty $regPath -ErrorAction SilentlyContinue
     return [bool]$reg
 }
 
 function Test-VsBuildTools {
     if (Test-CommandExists "cl") { return $true }
+    if (Test-CommandExists "link") { return $true }
     $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (-not (Test-Path $vsWhere)) { return $false }
     $install = & $vswhere -latest -products * `
         -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
         -property installationPath 2>$null
-    return [bool]$install
+    if ($install) { return $true }
+    $install2 = & $vswhere -latest -products * `
+        -requires Microsoft.VisualStudio.Workload.VCTools `
+        -property installationPath 2>$null
+    return [bool]$install2
+}
+
+function Wait-VsBuildTools {
+    param([int]$MaxMinutes = 45)
+    $attempts = $MaxMinutes * 2
+    for ($i = 1; $i -le $attempts; $i++) {
+        Refresh-SessionPath
+        if (Test-VsBuildTools) {
+            return $true
+        }
+        $min = [math]::Floor($i / 2)
+        Write-Host ("  En attente des Build Tools C++... ~{0} min" -f $min) -ForegroundColor Gray
+        Start-Sleep -Seconds 30
+    }
+    return $false
 }
 
 function Test-WslReady {
     if (-not (Test-CommandExists "wsl")) { return $false }
     wsl --status 2>$null | Out-Null
-    return $LASTEXITCODE -eq 0
+    return ($LASTEXITCODE -eq 0)
 }
 
 function Ensure-Wsl {
     if ($SkipWsl) {
-        Write-Warn "Vérification WSL ignorée (-SkipWsl)"
+        Write-Warn "Verification WSL ignoree (-SkipWsl)"
         return $true
     }
     Write-Step "WSL2"
@@ -140,75 +154,77 @@ function Ensure-Wsl {
         return $true
     }
     if (-not $InstallMissing) {
-        Write-Fail "WSL non configuré"
+        Write-Fail "WSL non configure"
         return $false
     }
-    Write-Warn "WSL absent — installation (administrateur requis)..."
+    Write-Warn "WSL absent - installation (administrateur requis)..."
     try {
         wsl --install --no-distribution 2>&1 | Out-Host
         Refresh-SessionPath
         if (Test-WslReady) {
-            Write-Ok "WSL installé — redémarrage Windows peut être nécessaire"
+            Write-Ok "WSL installe - redemarrage Windows peut etre necessaire"
             return $true
         }
     } catch {
-        Write-Fail "Échec installation WSL : $_"
+        Write-Fail ("Echec installation WSL : {0}" -f $_)
     }
     Write-Warn "Installez WSL manuellement : wsl --install"
     return $false
 }
 
 function Ensure-Node {
-    Write-Step "Node.js (>= $MinNodeMajor)"
+    Write-Step ("Node.js (>= {0})" -f $MinNodeMajor)
     $major = Get-NodeMajorVersion
     if ($major -ge $MinNodeMajor) {
-        Write-Ok "Node.js v$major"
+        Write-Ok ("Node.js v{0}" -f $major)
         return $true
     }
     if (-not $InstallMissing) {
-        Write-Fail "Node.js $MinNodeMajor+ requis (trouvé : v$major)"
+        Write-Fail ("Node.js {0}+ requis (trouve : v{1})" -f $MinNodeMajor, $major)
         return $false
     }
     if (Install-WithWinget -Id "OpenJS.NodeJS.LTS" -Label "Node.js LTS") {
         $major = Get-NodeMajorVersion
         if ($major -ge $MinNodeMajor) {
-            Write-Ok "Node.js v$major installé"
+            Write-Ok ("Node.js v{0} installe" -f $major)
             return $true
         }
     }
-    Write-Fail "Node.js introuvable — https://nodejs.org/"
+    Write-Fail "Node.js introuvable - https://nodejs.org/"
     return $false
 }
 
 function Ensure-Rust {
     Write-Step "Rust / Cargo"
     if ((Test-CommandExists "rustc") -and (Test-CommandExists "cargo")) {
-        Write-Ok "Rust $(rustc --version 2>$null)"
+        $ver = rustc --version 2>$null
+        Write-Ok ("Rust {0}" -f $ver)
         return $true
     }
     if (-not $InstallMissing) {
-        Write-Fail "Rust non installé"
+        Write-Fail "Rust non installe"
         return $false
     }
     if (Install-WithWinget -Id "Rustlang.Rustup" -Label "Rustup") {
         Refresh-SessionPath
         $cargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe"
         if (Test-Path $cargo) {
-            $env:Path = "$(Split-Path $cargo);$env:Path"
+            $cargoDir = Split-Path $cargo
+            $env:Path = "{0};{1}" -f $cargoDir, $env:Path
         }
         if ((Test-CommandExists "rustc") -and (Test-CommandExists "cargo")) {
-            Write-Ok "Rust installé"
+            Write-Ok "Rust installe"
             return $true
         }
     }
-    Write-Fail "Rust introuvable — https://rustup.rs/"
+    Write-Fail "Rust introuvable - https://rustup.rs/"
     return $false
 }
 
 function Ensure-WebView2 {
     Write-Step "WebView2 Runtime"
     if (Test-WebView2Installed) {
-        Write-Ok "WebView2 présent"
+        Write-Ok "WebView2 present"
         return $true
     }
     if (-not $InstallMissing) {
@@ -217,46 +233,62 @@ function Ensure-WebView2 {
     }
     if (Install-WithWinget -Id "Microsoft.EdgeWebView2Runtime" -Label "WebView2") {
         if (Test-WebView2Installed) {
-            Write-Ok "WebView2 installé"
+            Write-Ok "WebView2 installe"
             return $true
         }
     }
-    Write-Warn "WebView2 peut être préinstallé sur Windows 11 — continuez si l'app démarre"
+    Write-Warn "WebView2 peut etre preinstalle sur Windows 11 - continuez si l'app demarre"
     return $true
 }
 
 function Ensure-VsBuildTools {
     Write-Step "Visual Studio Build Tools (C++)"
     if (Test-VsBuildTools) {
-        Write-Ok "Outils de compilation C++ détectés"
+        Write-Ok "Outils de compilation C++ detectes"
         return $true
     }
-    Write-Warn "Build Tools C++ non détectés — requis pour compiler Tauri"
+    Write-Warn "Build Tools C++ non detectes - requis pour compiler Tauri"
     if (-not $InstallMissing) { return $false }
-    if (Test-WingetAvailable) {
-        $answer = Read-Host "  Installer Build Tools maintenant ? [O/n]"
-        if ($answer -eq "" -or $answer -match '^[OoYy]') {
-            Install-WithWinget -Id "Microsoft.VisualStudio.2022.BuildTools" -Label "VS Build Tools" | Out-Null
-            Write-Warn "Relancez ce script après l'installation des Build Tools"
-            return $false
-        }
+    if (-not (Test-WingetAvailable)) {
+        Write-Warn "Installez manuellement : Visual Studio Build Tools 2022 + charge C++"
+        return $false
     }
+    $answer = Read-Host "  Installer Build Tools (charge C++) maintenant ? [O/n]"
+    if ($answer -ne "" -and $answer -notmatch '^[OoYy]') {
+        return $false
+    }
+    $vsOverride = "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+    $installed = Install-WithWinget `
+        -Id "Microsoft.VisualStudio.2022.BuildTools" `
+        -Label "VS Build Tools (C++)" `
+        -Override $vsOverride
+    if (-not $installed) {
+        Write-Warn "Echec winget - installez Visual Studio Build Tools 2022 avec la charge C++"
+        return $false
+    }
+    Write-Host "  L'installateur VS peut prendre 10 a 30 minutes..." -ForegroundColor Gray
+    if (Wait-VsBuildTools -MaxMinutes 45) {
+        Write-Ok "Build Tools C++ installes"
+        return $true
+    }
+    Write-Warn "Build Tools pas encore detectes - relancez install.ps1 dans quelques minutes"
+    Write-Warn "Ou ouvrez 'Visual Studio Installer' et verifiez la charge 'Developpement Desktop en C++'"
     return $false
 }
 
 function Ensure-NpmDependencies {
-    Write-Step "Dépendances npm (app Tauri)"
+    Write-Step "Dependances npm (app Tauri)"
     if (-not (Test-Path $AppDir)) {
-        Write-Fail "Dossier app introuvable : $AppDir"
+        Write-Fail ("Dossier app introuvable : {0}" -f $AppDir)
         return $false
     }
     $nodeModules = Join-Path $AppDir "node_modules"
     if ((Test-Path $nodeModules) -and (Test-Path (Join-Path $AppDir "package-lock.json"))) {
-        Write-Ok "node_modules présent"
+        Write-Ok "node_modules present"
         return $true
     }
     if (-not $InstallMissing) {
-        Write-Fail "Exécutez : cd app && npm install"
+        Write-Fail "Executez : cd app ; npm install"
         return $false
     }
     Push-Location $AppDir
@@ -264,10 +296,11 @@ function Ensure-NpmDependencies {
         Write-Host "  npm install..." -ForegroundColor Gray
         npm install
         if ($LASTEXITCODE -ne 0) {
-            Write-Fail "npm install a échoué"
+            Write-Fail "npm install a echoue"
             return $false
         }
-        Write-Ok "Dépendances npm installées"
+        npm approve-scripts --allow-scripts-pending 2>$null | Out-Null
+        Write-Ok "Dependances npm installees"
         return $true
     } finally {
         Pop-Location
@@ -278,7 +311,7 @@ function Start-ProjectDeployGui {
     Write-Step "Lancement de l'interface graphique"
 
     if (Test-Path $TauriRelease) {
-        Write-Ok "Exécutable release trouvé"
+        Write-Ok "Executable release trouve"
         Start-Process -FilePath $TauriRelease -WorkingDirectory $RepoRoot
         return
     }
@@ -288,7 +321,7 @@ function Start-ProjectDeployGui {
         try {
             Write-Host "  Compilation release (peut prendre plusieurs minutes)..." -ForegroundColor Gray
             npm run tauri build
-            if ($LASTEXITCODE -ne 0) { throw "tauri build a échoué" }
+            if ($LASTEXITCODE -ne 0) { throw "tauri build a echoue" }
         } finally {
             Pop-Location
         }
@@ -296,27 +329,22 @@ function Start-ProjectDeployGui {
             Start-Process -FilePath $TauriRelease -WorkingDirectory $RepoRoot
             return
         }
-        throw "Exécutable release introuvable après build"
+        throw "Executable release introuvable apres build"
     }
 
-    Push-Location $AppDir
-    try {
-        Write-Ok "Mode développement — npm run tauri dev"
-        $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
-        $npm = if ($npmCmd) { $npmCmd.Source } else { "npm" }
-        Start-Process -FilePath $npm -ArgumentList @("run", "tauri", "dev") `
-            -WorkingDirectory $AppDir
-    } finally {
-        Pop-Location
-    }
+    Write-Ok "Mode developpement - npm run tauri dev"
+    $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    $npmExe = if ($npmCmd) { $npmCmd.Source } else { "npm" }
+    Start-Process -FilePath $npmExe -ArgumentList @("run", "tauri", "dev") `
+        -WorkingDirectory $AppDir
 }
 
-# --- Exécution ---
+# --- Execution ---
 
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║   ProjectDeploy — Vérification env.      ║" -ForegroundColor Cyan
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "   ProjectDeploy - Verification env." -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
 
 Refresh-SessionPath
 
@@ -329,26 +357,39 @@ $checks = @(
     @{ Name = "npm"; Ok = (Ensure-NpmDependencies) }
 )
 
-$guiReady = ($checks | Where-Object { $_.Name -in @("node", "rust", "webview2", "vs", "npm") -and -not $_.Ok }).Count -eq 0
-$deployReady = ($checks | Where-Object { $_.Name -eq "wsl" -and -not $_.Ok }).Count -eq 0
+$guiReady = ($checks | Where-Object {
+    $_.Name -in @("node", "rust", "webview2", "vs", "npm") -and -not $_.Ok
+}).Count -eq 0
+
+$deployReady = ($checks | Where-Object {
+    $_.Name -eq "wsl" -and -not $_.Ok
+}).Count -eq 0
 
 Write-Host ""
-Write-Host "══════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
 if ($guiReady) {
-    Write-Host "  GUI        : prête" -ForegroundColor Green
+    Write-Host "  GUI         : prete" -ForegroundColor Green
 } else {
-    Write-Host "  GUI        : incomplète" -ForegroundColor Red
+    Write-Host "  GUI         : incomplete" -ForegroundColor Red
 }
 if ($SkipWsl -or $deployReady) {
-    Write-Host "  Déploiement: prêt (WSL OK ou ignoré)" -ForegroundColor Green
+    Write-Host "  Deploiement : pret (WSL OK ou ignore)" -ForegroundColor Green
 } else {
-    Write-Host "  Déploiement: WSL requis pour installer des projets" -ForegroundColor Yellow
+    Write-Host "  Deploiement : WSL requis pour installer des projets" -ForegroundColor Yellow
 }
-Write-Host "══════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
 
 if ($LaunchGui) {
     if (-not $guiReady) {
-        Write-Fail "Corrigez les prérequis ci-dessus avant de lancer la GUI."
+        $failed = @($checks | Where-Object {
+            $_.Name -in @("node", "rust", "webview2", "vs", "npm") -and -not $_.Ok
+        } | ForEach-Object { $_.Name })
+        Write-Fail ("Prerequis manquants : {0}" -f ($failed -join ", "))
+        if ($failed -contains "vs") {
+            Write-Host ""
+            Write-Host "  Si VS Build Tools vient d'etre installe, attendez la fin puis relancez :" -ForegroundColor Yellow
+            Write-Host "    .\install.ps1" -ForegroundColor White
+        }
         exit 1
     }
     Start-ProjectDeployGui
@@ -357,7 +398,7 @@ if ($LaunchGui) {
 
 if ($guiReady) {
     Write-Host ""
-    Write-Host "Tout est prêt. Lancez :" -ForegroundColor Green
+    Write-Host "Tout est pret. Lancez :" -ForegroundColor Green
     Write-Host "  .\install.ps1" -ForegroundColor White
     exit 0
 }

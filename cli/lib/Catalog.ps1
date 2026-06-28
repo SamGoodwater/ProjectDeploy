@@ -79,8 +79,8 @@ function Expand-ProjectPath {
     )
     $path = $Template -replace '\{name\}', $ProjectName
     if ($path -match '^~') {
-        $user = if ($WslUser) { $WslUser } else { "user" }
-        $path = $path -replace '^~', "/home/$user"
+        $linuxUser = if ($WslUser) { $WslUser } else { "user" }
+        $path = $path -replace '^~', "/home/$linuxUser"
     }
     return $path
 }
